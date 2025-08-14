@@ -79,8 +79,8 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.95);
         border: 1px solid #e2e8f0;
         border-radius: 12px;
-        padding: 2rem;
-        margin: 1.5rem 0;
+        padding: 1.5rem;
+        margin: 0.5rem 0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         transition: all 0.3s ease;
         backdrop-filter: blur(10px);
@@ -100,7 +100,7 @@ st.markdown("""
         border-left: 4px solid #3b82f6;
         border-radius: 8px;
         padding: 1rem 1.5rem;
-        margin: 1rem 0;
+        margin: 0.5rem 0;
         color: #1e40af;
         font-weight: 500;
         backdrop-filter: blur(5px);
@@ -112,10 +112,42 @@ st.markdown("""
         border-left: 4px solid #22c55e;
         border-radius: 8px;
         padding: 1rem 1.5rem;
-        margin: 1rem 0;
+        margin: 0.5rem 0;
         color: #166534;
         font-weight: 500;
         backdrop-filter: blur(5px);
+    }
+    
+    /* Simulation completion messages */
+    .simulation-success {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05));
+        border: 2px solid #22c55e;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin: 0.5rem 0;
+        box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.1);
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    .navigation-info {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+        border: 2px solid #3b82f6;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin: 0.5rem 0;
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+        animation: slideIn 0.3s ease-out 0.1s both;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     .warning-box {
@@ -124,7 +156,7 @@ st.markdown("""
         border-left: 4px solid #f59e0b;
         border-radius: 8px;
         padding: 1rem 1.5rem;
-        margin: 1rem 0;
+        margin: 0.5rem 0;
         color: #92400e;
         font-weight: 500;
         backdrop-filter: blur(5px);
@@ -369,6 +401,10 @@ def main():
             ["🏠 Home", "🔧 Circuit Builder", "⚡ Simulation", "📊 Visualization", "📈 Step-by-Step", "💾 Export", "ℹ️ About"]
         )
         
+        # Clear simulation completed flag when navigating away from home
+        if page != "🏠 Home" and hasattr(st.session_state, 'simulation_completed'):
+            st.session_state.simulation_completed = False
+        
         st.markdown("---")
         
         # Quick actions
@@ -503,7 +539,14 @@ def show_home_page():
         st.markdown("Creates the entangled state (|00⟩ + |11⟩)/√2")
         if st.button("Try Bell State", key="bell_home"):
             st.session_state.circuit_builder._create_bell_state()
-            st.rerun()
+            st.session_state.last_simulation = "Bell State"
+            st.session_state.simulation_completed = True
+            
+        # Show success message if this was the last simulation
+        if getattr(st.session_state, 'simulation_completed', False) and getattr(st.session_state, 'last_simulation', '') == "Bell State":
+            st.markdown('<div class="simulation-success">✅ <strong>Bell State simulation completed!</strong></div>', unsafe_allow_html=True)
+            st.markdown('<div class="navigation-info">🔍 <strong>Navigate to \'Simulation & Visualization\' page to see results</strong></div>', unsafe_allow_html=True)
+            
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
@@ -512,7 +555,14 @@ def show_home_page():
         st.markdown("Creates the three-qubit entangled state (|000⟩ + |111⟩)/√2")
         if st.button("Try GHZ State", key="ghz_home"):
             st.session_state.circuit_builder._create_ghz_state()
-            st.rerun()
+            st.session_state.last_simulation = "GHZ State"
+            st.session_state.simulation_completed = True
+            
+        # Show success message if this was the last simulation
+        if getattr(st.session_state, 'simulation_completed', False) and getattr(st.session_state, 'last_simulation', '') == "GHZ State":
+            st.markdown('<div class="simulation-success">✅ <strong>GHZ State simulation completed!</strong></div>', unsafe_allow_html=True)
+            st.markdown('<div class="navigation-info">🔍 <strong>Navigate to \'Simulation & Visualization\' page to see results</strong></div>', unsafe_allow_html=True)
+            
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col3:
@@ -521,7 +571,14 @@ def show_home_page():
         st.markdown("Demonstrates quantum teleportation protocol")
         if st.button("Try Teleportation", key="tele_home"):
             st.session_state.circuit_builder._create_teleportation_circuit()
-            st.rerun()
+            st.session_state.last_simulation = "Quantum Teleportation"
+            st.session_state.simulation_completed = True
+            
+        # Show success message if this was the last simulation
+        if getattr(st.session_state, 'simulation_completed', False) and getattr(st.session_state, 'last_simulation', '') == "Quantum Teleportation":
+            st.markdown('<div class="simulation-success">✅ <strong>Quantum Teleportation simulation completed!</strong></div>', unsafe_allow_html=True)
+            st.markdown('<div class="navigation-info">🔍 <strong>Navigate to \'Simulation & Visualization\' page to see results</strong></div>', unsafe_allow_html=True)
+            
         st.markdown('</div>', unsafe_allow_html=True)
 
 def show_circuit_builder_page():
