@@ -3,7 +3,8 @@ Bell State Example Circuit
 Creates the entangled state (|00⟩ + |11⟩)/√2
 """
 
-from qiskit import QuantumCircuit, Aer, execute
+from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
 from qiskit.quantum_info import Statevector
 import numpy as np
 
@@ -39,8 +40,8 @@ def simulate_bell_state():
     qc = create_bell_state_circuit()
     
     # Simulate the circuit
-    backend = Aer.get_backend('aer_simulator')
-    job = execute(qc, backend, shots=1000)
+    backend = AerSimulator()
+    job = backend.run(qc, shots=1000)
     result = job.result()
     
     # Get the counts
@@ -51,7 +52,7 @@ def simulate_bell_state():
     qc_no_measure.h(0)
     qc_no_measure.cx(0, 1)
     
-    statevector_job = execute(qc_no_measure, backend, shots=1)
+    statevector_job = backend.run(qc_no_measure, shots=1)
     statevector_result = statevector_job.result()
     statevector = statevector_result.get_statevector()
     

@@ -3,7 +3,8 @@ Quantum Teleportation Example Circuit
 Demonstrates the complete quantum teleportation protocol
 """
 
-from qiskit import QuantumCircuit, Aer, execute
+from qiskit import QuantumCircuit
+from qiskit_aer import AerSimulator
 from qiskit.quantum_info import Statevector
 import numpy as np
 

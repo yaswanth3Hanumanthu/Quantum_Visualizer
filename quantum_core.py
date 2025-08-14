@@ -4,8 +4,9 @@ Handles quantum circuit simulation, partial trace calculations, and state analys
 """
 
 import numpy as np
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, execute
-from qiskit.quantum_info import Statevector, Operator, partial_trace
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+from qiskit_aer import AerSimulator
+from qiskit.quantum_info import Statevector, Operator, partial_trace, DensityMatrix
 from qiskit.visualization import plot_bloch_multivector
 import matplotlib.pyplot as plt
 from typing import List, Tuple, Dict, Optional
@@ -23,10 +24,10 @@ class QuantumStateAnalyzer:
             backend_name: Name of the Qiskit backend to use
         """
         try:
-            self.backend = Aer.get_backend(backend_name)
+            self.backend = AerSimulator(method='statevector')
         except Exception as e:
             # Fallback to default backend
-            self.backend = Aer.get_backend('aer_simulator')
+            self.backend = AerSimulator(method='statevector')
         
         self.circuit = None
         self.state_history = []
@@ -158,9 +159,9 @@ class QuantumStateAnalyzer:
                         # Try using Statevector class directly
                         statevector = Statevector.from_instruction(circuit_no_measure)
                     except Exception as e:
-                        # Fallback to execute method
+                        # Fallback to backend execution
                         try:
-                            statevector_job = execute(circuit_no_measure, self.backend, shots=1)
+                            statevector_job = self.backend.run(circuit_no_measure, shots=1)
                             statevector_result = statevector_job.result()
                             statevector = statevector_result.get_statevector()
                         except Exception as e2:
@@ -174,9 +175,9 @@ class QuantumStateAnalyzer:
                     # Try using Statevector class directly
                     statevector = Statevector.from_instruction(self.circuit)
                 except Exception as e:
-                    # Fallback to execute method
+                    # Fallback to backend execution
                     try:
-                        statevector_job = execute(self.circuit, self.backend, shots=1)
+                        statevector_job = self.backend.run(self.circuit, shots=1)
                         statevector_result = statevector_job.result()
                         statevector = statevector_result.get_statevector()
                     except Exception as e2:
@@ -186,7 +187,7 @@ class QuantumStateAnalyzer:
             counts = {}
             if has_measurements:
                 try:
-                    counts_job = execute(self.circuit, self.backend, shots=shots)
+                    counts_job = self.backend.run(self.circuit, shots=shots)
                     counts_result = counts_job.result()
                     counts = counts_result.get_counts()
                 except Exception as e:
@@ -281,8 +282,8 @@ class QuantumStateAnalyzer:
                 try:
                     statevector = Statevector.from_instruction(temp_circuit)
                 except Exception:
-                    # Fallback to execute method
-                    job = execute(temp_circuit, self.backend, shots=1)
+                    # Fallback to backend execution
+                    job = self.backend.run(temp_circuit, shots=1)
                     result = job.result()
                     statevector = result.get_statevector()
                 
