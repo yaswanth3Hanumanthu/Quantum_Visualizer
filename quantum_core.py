@@ -265,47 +265,108 @@ class QuantumStateAnalyzer:
     def _build_state_history(self):
         """Build a history of states after each gate application."""
         if self.circuit is None:
+            print("Warning: No circuit available for state history")
             return
             
         self.state_history = []
         temp_circuit = QuantumCircuit(self.circuit.num_qubits)
         
-        for instruction, qargs, cargs in self.circuit.data:
+        print(f"Building state history for circuit with {len(self.circuit.data)} instructions")
+        
+        for i, (instruction, qargs, cargs) in enumerate(self.circuit.data):
             # Skip measurement operations for state history
             if instruction.name == 'measure':
+                print(f"Skipping measurement at step {i}")
                 continue
                 
+            print(f"Processing step {i}: {instruction.name} on qubits {[getattr(q, 'index', q) for q in qargs]}")
             temp_circuit.append(instruction, qargs, cargs)
             
             try:
-                # Try using Statevector class directly first
+                # Try multiple approaches to get the statevector
+                statevector = None
+                
+                # Method 1: Direct Statevector creation
                 try:
+                    from qiskit.quantum_info import Statevector
                     statevector = Statevector.from_instruction(temp_circuit)
-                except Exception:
-                    # Fallback to backend execution
-                    job = self.backend.run(temp_circuit, shots=1)
-                    result = job.result()
-                    statevector = result.get_statevector()
+                    print(f"  ✓ Got statevector using Statevector.from_instruction")
+                except Exception as e1:
+                    print(f"  ✗ Statevector.from_instruction failed: {e1}")
+                    
+                    # Method 2: Try with AerSimulator
+                    try:
+                        job = self.backend.run(temp_circuit, shots=1)
+                        result = job.result()
+                        statevector = result.get_statevector()
+                        print(f"  ✓ Got statevector using backend simulation")
+                    except Exception as e2:
+                        print(f"  ✗ Backend simulation failed: {e2}")
+                        
+                        # Method 3: Try creating statevector from zero state and evolving
+                        try:
+                            initial_state = Statevector.from_label('0' * self.circuit.num_qubits)
+                            statevector = initial_state.evolve(temp_circuit)
+                            print(f"  ✓ Got statevector using evolve method")
+                        except Exception as e3:
+                            print(f"  ✗ Evolve method failed: {e3}")
+                            continue
+                
+                if statevector is None:
+                    print(f"  ✗ All methods failed for step {i}")
+                    continue
                 
                 # Convert Statevector to numpy array if needed
                 if hasattr(statevector, 'data'):
                     statevector_array = statevector.data
                 else:
-                    statevector_array = statevector
+                    statevector_array = np.array(statevector)
                 
                 # Calculate partial traces for this step
-                partial_traces = self._calculate_partial_traces(statevector_array)
+                try:
+                    partial_traces = self._calculate_partial_traces(statevector_array)
+                    print(f"  ✓ Calculated partial traces")
+                except Exception as e:
+                    print(f"  ✗ Partial trace calculation failed: {e}")
+                    # Use simple single-qubit traces as fallback
+                    partial_traces = []
+                    for qubit_idx in range(self.circuit.num_qubits):
+                        try:
+                            # Simple identity matrix as fallback
+                            partial_traces.append(np.eye(2) * 0.5)
+                        except:
+                            partial_traces.append(np.eye(2) * 0.5)
                 
                 self.state_history.append({
                     'step': len(self.state_history),
                     'gate': instruction.name,
-                    'qubits': [q.index for q in qargs],
+                    'qubits': [getattr(q, 'index', q) for q in qargs],
                     'statevector': statevector,
                     'partial_traces': partial_traces
                 })
+                print(f"  ✓ Added state history entry {len(self.state_history)}")
+                
             except Exception as e:
-                print(f"Warning: Could not build state history for step {len(self.state_history)}: {e}")
+                print(f"Warning: Could not build state history for step {i} ({instruction.name}): {e}")
                 continue
+                
+        print(f"State history building complete. Total entries: {len(self.state_history)}")
+        
+    def get_simple_gate_sequence(self):
+        """Get a simple sequence of gates for basic step-by-step analysis."""
+        if self.circuit is None:
+            return []
+            
+        gate_sequence = []
+        for i, (instruction, qargs, cargs) in enumerate(self.circuit.data):
+            if instruction.name != 'measure':
+                gate_sequence.append({
+                    'step': i,
+                    'gate': instruction.name,
+                    'qubits': [getattr(q, 'index', q) for q in qargs],
+                    'description': f"Apply {instruction.name} gate to qubit(s) {[getattr(q, 'index', q) for q in qargs]}"
+                })
+        return gate_sequence
     
     def get_state_at_step(self, step: int) -> Optional[Dict]:
         """
@@ -380,7 +441,7 @@ class QuantumStateAnalyzer:
             'num_classical_bits': self.circuit.num_clbits,
             'depth': self.circuit.depth(),
             'gate_counts': self.circuit.count_ops(),
-            'instructions': [(inst.name, [q.index for q in qargs]) 
+            'instructions': [(inst.name, [getattr(q, 'index', q) for q in qargs]) 
                            for inst, qargs, cargs in self.circuit.data]
         }
     

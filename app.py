@@ -382,6 +382,40 @@ def main():
             st.session_state.simulation_results = {}
             st.session_state.current_step = 0
             st.rerun()
+            
+        st.markdown("---")
+        
+        # Debug section
+        with st.expander("🔧 Debug Info"):
+            try:
+                from qiskit import __version__ as qiskit_version
+                st.write(f"Qiskit: {qiskit_version}")
+            except:
+                st.write("Qiskit: Not available")
+                
+            try:
+                import numpy as np
+                st.write(f"NumPy: {np.__version__}")
+            except:
+                st.write("NumPy: Not available")
+                
+            # Test basic Qiskit operations
+            if st.button("🧪 Test Qiskit"):
+                try:
+                    from qiskit import QuantumCircuit
+                    from qiskit.quantum_info import Statevector
+                    test_circuit = QuantumCircuit(1)
+                    test_circuit.h(0)
+                    statevector = Statevector.from_instruction(test_circuit)
+                    st.success("✅ Qiskit operations working!")
+                    st.write(f"Test statevector shape: {statevector.data.shape}")
+                except Exception as e:
+                    st.error(f"❌ Qiskit test failed: {str(e)}")
+                    
+            if hasattr(st.session_state, 'analyzer') and st.session_state.analyzer.circuit:
+                st.write(f"Circuit qubits: {st.session_state.analyzer.circuit.num_qubits}")
+                st.write(f"Circuit gates: {len(st.session_state.analyzer.circuit.data)}")
+                st.write(f"State history entries: {len(st.session_state.analyzer.state_history) if hasattr(st.session_state.analyzer, 'state_history') else 0}")
     
     # Page routing
     if page == "🏠 Home":
@@ -719,13 +753,59 @@ def show_step_by_step_page():
     if not st.session_state.analyzer.state_history:
         if st.session_state.analyzer.circuit is not None:
             st.info("🔄 Building state history for step-by-step analysis...")
+            
+            # Show circuit information for debugging
+            circuit_info = f"""
+            **Circuit Information:**
+            - Number of qubits: {st.session_state.analyzer.circuit.num_qubits}
+            - Number of instructions: {len(st.session_state.analyzer.circuit.data)}
+            - Instructions: {[instr[0].name for instr in st.session_state.analyzer.circuit.data[:5]]}{'...' if len(st.session_state.analyzer.circuit.data) > 5 else ''}
+            """
+            st.markdown(circuit_info)
+            
             try:
                 st.session_state.analyzer._build_state_history()
                 if not st.session_state.analyzer.state_history:
                     st.warning("⚠️ Could not build state history. This may happen if the circuit contains only measurements or unsupported operations.")
-                    return
+                    
+                    # Show more specific debugging info
+                    non_measurement_gates = [instr[0].name for instr in st.session_state.analyzer.circuit.data if instr[0].name != 'measure']
+                    if not non_measurement_gates:
+                        st.info("ℹ️ Your circuit contains only measurement operations. Add some quantum gates to see step-by-step analysis.")
+                        return
+                    else:
+                        st.info(f"ℹ️ Circuit has {len(non_measurement_gates)} non-measurement gates: {non_measurement_gates}")
+                        st.info("Showing simplified gate sequence instead of full state evolution:")
+                        
+                        # Show simple gate sequence as fallback
+                        gate_sequence = st.session_state.analyzer.get_simple_gate_sequence()
+                        if gate_sequence:
+                            st.markdown("### 🔄 Gate Sequence")
+                            for gate_info in gate_sequence:
+                                st.markdown(f"**Step {gate_info['step'] + 1}**: {gate_info['description']}")
+                        return
+                else:
+                    st.success(f"✅ Successfully built state history with {len(st.session_state.analyzer.state_history)} steps!")
             except Exception as e:
                 st.error(f"❌ Error building state history: {str(e)}")
+                st.info("🔧 **Showing simplified analysis instead:**")
+                
+                # Show simple gate sequence as fallback
+                try:
+                    gate_sequence = st.session_state.analyzer.get_simple_gate_sequence()
+                    if gate_sequence:
+                        st.markdown("### 🔄 Gate Sequence")
+                        for gate_info in gate_sequence:
+                            st.markdown(f"**Step {gate_info['step'] + 1}**: {gate_info['description']}")
+                    else:
+                        st.info("No quantum gates found in the circuit.")
+                except Exception as fallback_error:
+                    st.error(f"Even simplified analysis failed: {str(fallback_error)}")
+                    
+                st.info("**Troubleshooting Tips:**")
+                st.info("- Try using simpler quantum gates (X, Y, Z, H, CNOT)")
+                st.info("- Ensure your circuit has non-measurement operations")
+                st.info("- Check if all gates are supported by the current Qiskit version")
                 return
         else:
             st.warning("⚠️ No circuit available. Please create and simulate a circuit first.")
